@@ -52,6 +52,32 @@ const MIGRATIONS: string[] = [
     PRIMARY KEY (round_id, hole_number)
   );
   `,
+  `
+  -- Hole guides: the shareable breakdown of a hole (lines, landing zones, OB, mandos).
+  -- Stored as JSON (see HoleGuide in src/domain/guide.ts); it is always read and written whole.
+  CREATE TABLE hole_guides (
+    layout_id TEXT NOT NULL,
+    hole_number INTEGER NOT NULL,
+    guide_json TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (layout_id, hole_number)
+  );
+
+  -- Player's-eye photos. file_name is relative to the app's photo directory, because the
+  -- absolute documents path can change between app installs on iOS.
+  CREATE TABLE guide_photos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    layout_id TEXT NOT NULL,
+    hole_number INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    file_name TEXT NOT NULL,
+    caption TEXT NOT NULL DEFAULT '',
+    lat REAL, lng REAL,
+    heading REAL,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX guide_photos_by_hole ON guide_photos (layout_id, hole_number);
+  `,
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {

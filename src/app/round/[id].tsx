@@ -5,25 +5,31 @@ import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import {
   finishRound,
   getHoles,
+  getGuide,
   getNotes,
+  getPhotos,
   getRound,
   getScores,
   setHolePar,
   setHolePoint,
   setRoundWeather,
   setScore,
+  type GuidePhoto,
   type HoleNote,
   type RoundRow,
 } from '../../db/repo.ts';
 import { ratingFor, weatherCoefficients } from '../../data/ratings.ts';
 import { findLayout } from '../../data/tulsa.ts';
-import { averageFixes, bearingDegrees, compassPoint, distanceFeet } from '../../domain/geo.ts';
+import { bearingDegrees, compassPoint, distanceFeet, surveyPoint } from '../../domain/geo.ts';
+import type { HoleGuide } from '../../domain/guide.ts';
 import { adjustedScore, courseHandicap, scoreDifferential } from '../../domain/handicap.ts';
 import type { Hole, LatLng, Weather } from '../../domain/types.ts';
 import { weatherBucket, weatherStrokes } from '../../domain/weather.ts';
 import { useLiveLocation, type Fix } from '../../hooks/useLiveLocation.ts';
 import { getPlayerIndex } from '../../lib/player.ts';
+import { getThrowProfile, type ThrowProfile } from '../../lib/throwing.ts';
 import { fetchCurrentWeather } from '../../services/openMeteo.ts';
+import { HoleGuideView } from '../../ui/HoleGuideView.tsx';
 import { Stepper } from '../../ui/Stepper.tsx';
 import { colors, toPar, ui } from '../../ui/theme.ts';
 
@@ -45,13 +51,16 @@ export default function RoundScreen() {
   const [mark, setMark] = useState<LatLng | null>(null);
   const [weather, setWeather] = useState<Weather | null>(null);
   const [weatherError, setWeatherError] = useState<string | null>(null);
+  const [guide, setGuide] = useState<HoleGuide | null>(null);
+  const [guidePhotos, setGuidePhotos] = useState<GuidePhoto[]>([]);
+  const [profile, setProfile] = useState<ThrowProfile>({ hand: 'right', usual: 'backhand' });
 
   const { fix, error: gpsError } = useLiveLocation(!round?.finishedAt);
   // Recent fixes, so "Set basket here" averages several readings instead of trusting one.
   const recentFixes = useRef<Fix[]>([]);
   useEffect(() => {
     if (!fix) return;
-    recentFixes.current = [...recentFixes.current, fix].filter((f) => fix.at - f.at <= SURVEY_WINDOW_MS);
+    recentFixes.current = [...recentFixes.current, fix].filter((f) => fix.at - f.at <= SURVEY_WINDOW_MS).slice(-30);
   }, [fix]);
 
   const found = round ? findLayout(round.layoutId) : undefined;
@@ -74,7 +83,11 @@ export default function RoundScreen() {
   // Notes can be edited on another screen; reload whenever we come back.
   useFocusEffect(
     useCallback(() => {
-      if (layout && hole) getNotes(db, layout.id, hole.number).then(setNotes);
+      if (!layout || !hole) return;
+      getNotes(db, layout.id, hole.number).then(setNotes);
+      getGuide(db, layout.id, hole.number).then(setGuide);
+      getPhotos(db, layout.id, hole.number).then(setGuidePhotos);
+      getThrowProfile(db).then(setProfile);
     }, [db, layout, hole]),
   );
 
@@ -122,7 +135,7 @@ export default function RoundScreen() {
   };
 
   const survey = async (which: 'tee' | 'basket') => {
-    const p = averageFixes(recentFixes.current);
+    const p = surveyPoint(recentFixes.current, Date.now());
     if (!p) {
       Alert.alert('No GPS yet', 'Wait for a GPS fix, then try again.');
       return;
@@ -222,6 +235,23 @@ export default function RoundScreen() {
           </View>
         ) : null}
       </View>
+
+      {/* Hole guide: how to play it, OB, tee view */}
+      {guide || guidePhotos.length ? (
+        <View style={ui.card}>
+          <View style={ui.between}>
+            <Text style={ui.h2}>Hole guide</Text>
+            <Pressable
+              onPress={() =>
+                router.push({ pathname: '/guide/[layoutId]', params: { layoutId: layout.id, hole: String(hole.number) } })
+              }
+            >
+              <Text style={ui.buttonGhostText}>Full guide ›</Text>
+            </Pressable>
+          </View>
+          <HoleGuideView hole={hole} guide={guide} photos={guidePhotos} profile={profile} compact />
+        </View>
+      ) : null}
 
       {/* Measure a throw */}
       <View style={ui.between}>

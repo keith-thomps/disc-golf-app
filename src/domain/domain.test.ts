@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { rateLayouts, roundSsa, slopeFromSpread } from './courseRating.ts';
-import { distanceFeet } from './geo.ts';
+import { distanceFeet, surveyPoint } from './geo.ts';
 import {
   adjustedScore,
   courseHandicap,
@@ -25,6 +25,21 @@ describe('geo', () => {
     const d = distanceFeet({ lat: 36.15, lng: -95.99 }, { lat: 36.151, lng: -95.99 });
     expect(d).toBeGreaterThan(362);
     expect(d).toBeLessThan(366);
+  });
+});
+
+describe('surveying a point', () => {
+  it('ignores readings from the walk up to the spot', () => {
+    const tee = { lat: 36.1371, lng: -96.0642 };
+    const basket = { lat: 36.1380, lng: -96.0642 };
+    const p = surveyPoint(
+      [
+        { coord: tee, accuracyM: 3, at: 1000 },
+        { coord: basket, accuracyM: 3, at: 1500 },
+      ],
+      2000,
+    )!;
+    expect(distanceFeet(p, basket)).toBeLessThan(1);
   });
 });
 

@@ -2,11 +2,13 @@ import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { getDifferentials, setSetting } from '../../db/repo.ts';
+import { getDifferentials, getSetting, setSetting } from '../../db/repo.ts';
 import { weatherCoefficients, weatherModelIsFitted } from '../../data/ratings.ts';
 import { formatIndex, pdgaRatingFromIndex, udiscToPdga } from '../../domain/handicap.ts';
 import { WEATHER_BUCKETS } from '../../domain/weather.ts';
 import { getPlayerIndex, type PlayerIndex } from '../../lib/player.ts';
+import { getThrowProfile, setThrowProfile, type ThrowProfile } from '../../lib/throwing.ts';
+import { ChipRow } from '../../ui/Chips.tsx';
 import { ui } from '../../ui/theme.ts';
 
 export default function ProfileScreen() {
@@ -15,6 +17,8 @@ export default function ProfileScreen() {
   const [diffs, setDiffs] = useState<number[]>([]);
   const [ratingInput, setRatingInput] = useState('');
   const [udiscInput, setUdiscInput] = useState('');
+  const [throwing, setThrowing] = useState<ThrowProfile>({ hand: 'right', usual: 'backhand' });
+  const [name, setName] = useState('');
 
   const reload = useCallback(() => {
     getPlayerIndex(db).then((p) => {
@@ -22,7 +26,15 @@ export default function ProfileScreen() {
       if (p.pdgaRating) setRatingInput(String(p.pdgaRating));
     });
     getDifferentials(db).then(setDiffs);
+    getThrowProfile(db).then(setThrowing);
+    getSetting(db, 'display_name').then((n) => setName(n ?? ''));
   }, [db]);
+
+  const updateThrowing = (patch: Partial<ThrowProfile>) => {
+    const next = { ...throwing, ...patch };
+    setThrowing(next);
+    setThrowProfile(db, next);
+  };
   useFocusEffect(reload);
 
   const saveRating = async (value: string) => {
@@ -84,6 +96,29 @@ export default function ProfileScreen() {
             <Text style={ui.buttonText}>Use</Text>
           </Pressable>
         </View>
+      </View>
+
+      <View style={ui.card}>
+        <Text style={ui.h2}>How you throw</Text>
+        <Text style={ui.muted}>Hole guides translate each line into the release you need (hyzer, flat, anhyzer).</Text>
+        <ChipRow
+          options={[['right', 'Right-handed'], ['left', 'Left-handed']] as const}
+          value={throwing.hand}
+          onChange={(hand) => updateThrowing({ hand })}
+        />
+        <ChipRow
+          options={[['backhand', 'Mostly backhand'], ['forehand', 'Mostly forehand']] as const}
+          value={throwing.usual}
+          onChange={(usual) => updateThrowing({ usual })}
+        />
+        <Text style={ui.muted}>Your name on guides you share</Text>
+        <TextInput
+          style={ui.input}
+          value={name}
+          onChangeText={setName}
+          onEndEditing={() => setSetting(db, 'display_name', name.trim() || null)}
+          placeholder="e.g. Keith"
+        />
       </View>
 
       <View style={ui.card}>

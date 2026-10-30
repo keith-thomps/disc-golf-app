@@ -20,6 +20,8 @@ export default function RootLayout() {
         <Stack.Screen name="round/[id]" options={{ title: 'Round' }} />
         <Stack.Screen name="notes/[layoutId]/[hole]" options={{ title: 'Hole notes' }} />
         <Stack.Screen name="book/[layoutId]" options={{ title: 'Yardage book' }} />
+        <Stack.Screen name="guide/[layoutId]" options={{ title: 'Hole guide' }} />
+        <Stack.Screen name="guide/edit/[layoutId]/[hole]" options={{ title: 'Edit guide' }} />
       </Stack>
     </SQLiteProvider>
   );

@@ -51,3 +51,23 @@ export function averageFixes(fixes: { coord: LatLng; accuracyM: number | null }[
   }
   return { lat: lat / wSum, lng: lng / wSum };
 }
+
+/**
+ * Pick the fixes that describe where the player is standing now, then average them.
+ * Phones only report a new fix after moving, so a time window alone can include
+ * readings from the walk up to the spot. Keep fixes that are recent AND close to the
+ * latest fix (within its accuracy, at least 4 m).
+ */
+export function surveyPoint(
+  fixes: { coord: LatLng; accuracyM: number | null; at: number }[],
+  now: number,
+  windowMs = 8000,
+): LatLng | null {
+  if (fixes.length === 0) return null;
+  const latest = fixes.reduce((a, b) => (b.at > a.at ? b : a));
+  const radius = Math.max(4, latest.accuracyM ?? 10);
+  const near = fixes.filter(
+    (f) => (now - f.at <= windowMs || f === latest) && distanceMeters(f.coord, latest.coord) <= radius,
+  );
+  return averageFixes(near);
+}

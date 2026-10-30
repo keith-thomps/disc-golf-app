@@ -30,6 +30,13 @@
         {
           "locationWhenInUsePermission": "DiscBook uses your location to show distance to the basket and to map tees, baskets and landing zones."
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "DiscBook uses the camera to take tee, fairway and green photos for hole guides.",
+          "photosPermission": "DiscBook lets you add hole guide photos from your library."
+        }
       ]
     ],
     "experiments": {

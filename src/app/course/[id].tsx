@@ -96,6 +96,12 @@ export default function CourseScreen() {
                 <Text style={ui.buttonGhostText}>Yardage book</Text>
               </Pressable>
             </View>
+            <Pressable
+              style={ui.buttonGhost}
+              onPress={() => router.push({ pathname: '/guide/[layoutId]', params: { layoutId: layout.id } })}
+            >
+              <Text style={ui.buttonGhostText}>Hole guide: walk the course from the tee</Text>
+            </Pressable>
           </View>
         );
       })}

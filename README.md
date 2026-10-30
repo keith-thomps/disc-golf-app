@@ -8,6 +8,11 @@ A disc golf scoring app built around three ideas UDisc doesn't have:
 3. **A yardage book**: per-hole notes (landing zones, disc and line, green complexes, OB) that
    carry over from round to round, with optional GPS pins you can measure to.
 
+4. **Hole guides for players who've never seen the course**: tee, fairway and green photos
+   taken from where a player stands, a shot-by-shot breakdown (distance, landing zone, line),
+   and out-of-bounds rules written in plain English. A local writes the guide once and shares
+   it as a single file. Traveling players import it before a tournament weekend.
+
 It also shows a live **distance in feet** to the selected hole's basket (or to any pinned
 landing zone) during a round. The first release covers the 21 courses in Tulsa, OK.
 
@@ -93,6 +98,38 @@ This follows golf's World Handicap System:
   using PDGA ≈ UDisc × 2 + 500.
 - **Practice rounds** don't count toward the handicap. They're for building the yardage book.
 
+## Hole guides (`src/domain/guide.ts`)
+
+Guides are written in absolute terms, and each reader sees them translated for themselves:
+
+- **Lines**: the author records which way the shot *finishes* as seen from the tee (left,
+  straight, right, roller), plus height, disc class and a landing target. The reader's
+  handedness and usual throw (set on the Handicap tab) turn that into a release.
+  - A left-finishing line reads as "backhand hyzer, or forehand anhyzer" for a right-handed
+    backhand player.
+  - The same line reads as "forehand hyzer, or backhand anhyzer" for a left-handed forehand
+    player.
+  - A hyzer is ranked ahead of an anhyzer because it's the more reliable shot.
+- **Distances**: if the author pins a landing zone with GPS, the shot length and the distance
+  left to the basket are measured. Otherwise the entered distance is used.
+- **Out of bounds**: the author picks the feature (water, road, fence, or their own words),
+  the sides (left, right, short, long), OB or hazard, and the relief (last in bounds, drop
+  zone, re-tee). The app writes the rule as a sentence: *"The creek is OB on the left and
+  long, past the basket. If you go out, play from the drop zone (by the footbridge), +1
+  stroke."* Mandatories work the same way.
+- **Player's-eye photos**: tee, fairway and green photos record where they were taken and
+  which way the phone was facing. The reader sees "120 ft to the basket" on a fairway shot,
+  and a warning if a "tee view" doesn't actually face the basket.
+- **View-from-the-tee diagram**: the hole is redrawn with the basket straight ahead and the
+  reader's left on the left. It shows each planned flight, the landing zones and the OB sides.
+  It's to scale once the tee and basket are mapped.
+
+**Sharing**: *Share guide* writes one `.discbook.json` file with the guides, tee and basket
+GPS, and the photos (base64 JPEG), then opens the share sheet. *Import guide* checks the file
+(`src/domain/guidePack.ts`) and replaces the guide for the holes it covers. It never touches
+the player's personal yardage book notes. There's no server yet, so sharing works by AirDrop,
+text, or a tournament group chat.
+
 ## Feeding in PDGA data
 
 `scripts/rate-courses.ts` turns round results into `src/data/generated/ratings.json`, which
@@ -140,12 +177,17 @@ src/
   app/            Expo Router screens (tabs: Courses, Rounds, Handicap; plus course, round, notes, book)
   domain/         Pure TS: geo, course rating, weather model, handicap (+ tests)
   data/           Tulsa course seed + bundled ratings output
+  services/       Open-Meteo weather, photo capture/storage, guide pack share/import
+  ui/             Shared components (hole guide view, view-from-the-tee diagram, chips)
   db/             SQLite schema/migrations and queries
-  services/       Open-Meteo weather client
 scripts/          Rating pipeline and synthetic data generator (run with Node 22+)
 ```
 
 ## Roadmap ideas
+
+- A shared guide library on a server, so players can search "Blackhawk guide" instead of
+  passing files around, with ratings and author credit
+- Short video flyovers from the tee, and per-tournament layout guides (temporary OB, alternate pins)
 
 - Real par, length and GPS for the Tulsa layouts, plus alternate layouts (short and long
   tees, pin positions)

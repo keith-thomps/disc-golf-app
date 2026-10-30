@@ -1,4 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { EMPTY_GUIDE, type HoleGuide } from '../domain/guide.ts';
+import type { PhotoKind } from '../domain/guidePack.ts';
 import type { Hole, LatLng, Layout, Weather } from '../domain/types.ts';
 
 export type RoundType = 'casual' | 'practice' | 'tournament' | 'league';
@@ -311,4 +313,107 @@ export async function getDifferentials(db: SQLiteDatabase): Promise<number[]> {
      ORDER BY finished_at DESC LIMIT 20`,
   );
   return rows.map((r) => r.differential);
+}
+
+// ---------- hole guides ----------
+
+export type GuidePhoto = {
+  id: number;
+  holeNumber: number;
+  kind: PhotoKind;
+  fileName: string;
+  caption: string;
+  at: LatLng | null;
+  heading: number | null;
+};
+
+export async function getGuides(db: SQLiteDatabase, layoutId: string): Promise<Map<number, HoleGuide>> {
+  const rows = await db.getAllAsync<{ hole_number: number; guide_json: string }>(
+    'SELECT hole_number, guide_json FROM hole_guides WHERE layout_id = ?',
+    layoutId,
+  );
+  return new Map(rows.map((r) => [r.hole_number, { ...EMPTY_GUIDE, ...JSON.parse(r.guide_json) }]));
+}
+
+export async function getGuide(db: SQLiteDatabase, layoutId: string, hole: number): Promise<HoleGuide | null> {
+  const row = await db.getFirstAsync<{ guide_json: string }>(
+    'SELECT guide_json FROM hole_guides WHERE layout_id = ? AND hole_number = ?',
+    layoutId,
+    hole,
+  );
+  return row ? { ...EMPTY_GUIDE, ...JSON.parse(row.guide_json) } : null;
+}
+
+export async function saveGuide(db: SQLiteDatabase, layoutId: string, hole: number, guide: HoleGuide) {
+  await db.runAsync(
+    `INSERT INTO hole_guides (layout_id, hole_number, guide_json, updated_at) VALUES (?, ?, ?, ?)
+     ON CONFLICT(layout_id, hole_number) DO UPDATE SET guide_json = excluded.guide_json, updated_at = excluded.updated_at`,
+    layoutId,
+    hole,
+    JSON.stringify(guide),
+    now(),
+  );
+}
+
+type PhotoRow = {
+  id: number;
+  hole_number: number;
+  kind: PhotoKind;
+  file_name: string;
+  caption: string;
+  lat: number | null;
+  lng: number | null;
+  heading: number | null;
+};
+
+const PHOTO_ORDER = "CASE kind WHEN 'tee' THEN 0 WHEN 'fairway' THEN 1 ELSE 2 END";
+
+export async function getPhotos(db: SQLiteDatabase, layoutId: string, hole?: number): Promise<GuidePhoto[]> {
+  const rows =
+    hole === undefined
+      ? await db.getAllAsync<PhotoRow>(
+          `SELECT * FROM guide_photos WHERE layout_id = ? ORDER BY hole_number, ${PHOTO_ORDER}, created_at`,
+          layoutId,
+        )
+      : await db.getAllAsync<PhotoRow>(
+          `SELECT * FROM guide_photos WHERE layout_id = ? AND hole_number = ? ORDER BY ${PHOTO_ORDER}, created_at`,
+          layoutId,
+          hole,
+        );
+  return rows.map((r) => ({
+    id: r.id,
+    holeNumber: r.hole_number,
+    kind: r.kind,
+    fileName: r.file_name,
+    caption: r.caption,
+    at: r.lat !== null && r.lng !== null ? { lat: r.lat, lng: r.lng } : null,
+    heading: r.heading,
+  }));
+}
+
+export async function addPhoto(
+  db: SQLiteDatabase,
+  p: { layoutId: string; holeNumber: number; kind: PhotoKind; fileName: string; caption: string; at: LatLng | null; heading: number | null },
+): Promise<void> {
+  await db.runAsync(
+    `INSERT INTO guide_photos (layout_id, hole_number, kind, file_name, caption, lat, lng, heading, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    p.layoutId,
+    p.holeNumber,
+    p.kind,
+    p.fileName,
+    p.caption,
+    p.at?.lat ?? null,
+    p.at?.lng ?? null,
+    p.heading,
+    now(),
+  );
+}
+
+export async function updatePhotoCaption(db: SQLiteDatabase, id: number, caption: string) {
+  await db.runAsync('UPDATE guide_photos SET caption = ? WHERE id = ?', caption, id);
+}
+
+export async function deletePhotoRow(db: SQLiteDatabase, id: number) {
+  await db.runAsync('DELETE FROM guide_photos WHERE id = ?', id);
 }
