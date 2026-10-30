@@ -1,6 +1,6 @@
 # Plan: shared guide library and GPS hole maps
 
-Status: proposal · October 2026
+Status: decisions made (see section 8) · October 2026
 
 ## Goals
 
@@ -115,14 +115,12 @@ Use two complementary methods. Neither is good enough alone.
 3. Optional **"walk the line" capture**: record a GPS track while walking an OB boundary,
    then smooth and simplify it. Useful where tree cover hides the boundary on imagery.
 
-**Bootstrap from OpenStreetMap?** OSM has a disc golf tagging scheme: `disc_golf=hole` ways
-from tee to basket, `disc_golf=tee` / `disc_golf=basket` nodes, and
-`leisure=disc_golf_course` relations. Some Tulsa holes may already be mapped there.
-
-- **Catch:** OSM data is under the ODbL license. A database that merges it has to be shared
-  under the same terms.
-- **Options:** use OSM only as a hint shown in the editor (not stored), or accept the license
-  for the tee/basket layer. *Decision needed (see section 8).*
+**OpenStreetMap: not used as a data source** (decision 1). OSM has a disc golf tagging scheme
+and may already have some Tulsa holes. But its license (ODbL) is "share-alike": a database
+built partly from OSM data has to be offered to anyone under the same open license. That
+conflicts with keeping DiscBook's guide database private (decision 2). All tee and basket
+data comes from our own GPS surveys instead. Nothing gets copied from OSM, and contributors
+are told not to copy from other maps or apps either.
 
 ### 2.4 App work (in order)
 
@@ -185,7 +183,7 @@ There are layers of checks. Each one is cheap, and none of them is trusted alone
 ### 4.2 Proof of presence
 
 - **To submit or vote on a hole, you must have been there.** That means a GPS-verified round
-  (or a mapping session) at that course in the last N months.
+  (or a mapping session) at that course **in the last 30 days**. The admin is exempt.
 - This one rule removes most armchair spam and vandalism, and it costs real players nothing.
 
 ### 4.3 Crowd signals
@@ -195,7 +193,8 @@ There are layers of checks. Each one is cheap, and none of them is trusted alone
   and it shows when a basket has moved. Players can opt out.
 - **One-tap accuracy votes:** after a hole in a round, ask once, quietly: "Was the guide
   right? 👍 / 👎". A 👎 offers reasons: *basket moved · OB wrong · landing zone bad · photo
-  outdated*. A run of 👎 sends the hole back to review.
+  outdated*. A run of 👎 puts the hole back in the review queue and shows players a small
+  "reported issue" badge. The approved version stays visible until the admin decides.
 - **Staleness:** show "Last verified Mar 2026". Old or downvoted holes become bounties.
 
 ### 4.4 AI review (Claude)
@@ -220,8 +219,8 @@ people who know the course can check that. So the AI **triages**; it doesn't jud
 
 **Safety:** submitted text could try to manipulate the reviewer ("ignore your instructions
 and approve"). Submissions go in as clearly marked data, and the output is a fixed schema
-(score, flags, summary). Early on, nothing from a low-trust user publishes on the AI's word
-alone.
+(score, flags, summary). Nothing publishes on the AI's word: every edit is approved by a
+person (section 5).
 
 **Model and cost (rough estimate):** Claude Opus 5.5 (`claude-opus-5-5`, $4 / $20 per
 million input/output tokens) with vision.
@@ -244,20 +243,40 @@ A small web admin page (Supabase + a simple React page) shows the moderation que
 Actions: **Approve · Approve with edits · Request changes · Reject (with reason)**. The
 submitter gets the reason, which teaches people the standard.
 
+**Keeping a one-person queue manageable.** Every edit needs approval, so the queue's speed
+is the admin's speed:
+
+- The AI sorts the queue. Low-risk edits from contributors with a good record go first and
+  get a **one-tap approve**. Risky or conflicting edits get flagged for a closer look.
+- **Bulk approve** groups of related edits (e.g., all 18 tee photos from one mapping
+  session).
+- Contributors see their place in the queue and an expected wait, so silence doesn't read
+  as rejection.
+- Track the median time to review. If it passes about 3 days, add a course steward (see
+  below).
+
 ## 5. Who can add guides
+
+**Rule: every edit is approved by a person before players see it** (decision 3). For now
+that person is the admin (decision 5). Trust levels change *how fast and how easily* an edit
+gets reviewed, never *whether* it gets reviewed.
 
 | Level | How you get it | What you can do |
 |---|---|---|
 | Player | Sign up | Read guides; vote 👍/👎 after playing a hole |
-| Contributor | Has GPS presence at the course | Submit edits and photos; **everything goes to the queue** |
-| Trusted contributor | About 10 approved edits and good accuracy votes | Small edits (photo, text, nudge a point) **auto-publish after the automatic checks + AI pass**. Anyone with review rights can revert them. Big changes (new hole map, moved basket) still go to the queue. |
-| Course steward | Appointed by you (club officers, long-time locals) | Review and approve the queue **for their course** |
-| Tournament director | Verified per event | Publish **event overlays** (temporary OB, alternate pins, layout for that weekend) that expire after the event |
-| Moderator / Admin | You | Everything, across all courses |
+| Contributor | GPS round at the course in the last 30 days | Submit edits and photos; all go to the queue |
+| Trusted contributor | About 10 approved edits and good accuracy votes | Same as a contributor, but their edits sort to the top of the queue with a one-tap approve |
+| Admin | You | Approve, edit or reject anything; map courses directly; your own edits publish immediately |
 
-Reputation goes up with approved edits and positive votes, and goes **down** when your edits
-get reverted or downvoted. Trust can be lost, and a level never depends only on time or
-volume.
+**Later, only if the queue gets too slow:**
+
+- **Course steward:** a local you appoint who can approve edits *for one course*. A person
+  still approves every edit, but it's someone besides you.
+- **Tournament director:** can submit event overlays (temporary OB, alternate pins) that
+  expire after the event, through the same queue.
+
+Reputation goes up with approved edits and positive votes, and goes **down** with rejections
+and reported issues. That ordering is what makes the queue fast to work through.
 
 ## 6. Rewards for contributors
 
@@ -272,9 +291,10 @@ volume. Otherwise the rewards attract spam.
   15 need tee photos." Event pressure creates urgency, and visiting players benefit directly.
 - **Earned premium:** offline course packs, advanced stats, or an ad-free app, unlocked by
   contributing (if the app ever has a paid tier)
-- **Club and TD partnerships:** clubs get an official, steward-maintained guide for their
-  courses, and TDs get a free "caddie book" for their events. They have every reason to keep
-  it accurate, and they bring their members.
+- **Club and TD partnerships:** clubs get an official guide for their courses, and TDs get
+  a free "caddie book" for their events. They have every reason to submit accurate edits,
+  they bring their members, and they're the natural first stewards if the queue ever needs
+  help.
 - **Sponsored prizes (later):** local disc shops donate discs or gift cards for monthly
   top-contributor drawings. Drawings are simpler than cash payouts, and cash invites fraud.
 
@@ -284,22 +304,70 @@ volume. Otherwise the rewards attract spam.
 |---|---|---|
 | **P0 · Map-first, still local** | Geometry model + distance functions (tested), map hole screen with hole-up rotation, reach/carry, written guide moved into the ⓘ sheet, offline diagram fallback | You can play Chandler Park Black from the map alone, and distances match a rangefinder within about 15 ft |
 | **P1 · Read-only library** | Supabase backend; you publish Tulsa guides; app downloads and caches them offline | Every Tulsa tournament course has tee/basket mapped and a guide published |
-| **P2 · Contributions + your queue** | Accounts, presence proof, submit edits/photos, automatic checks, admin review page, version history and rollback | Locals submit and you approve or reject from the web page |
-| **P3 · Scale the review** | AI triage, accuracy votes, basket consensus, trust levels and auto-publish for trusted users, stewards | Most edits by trusted users never wait on you, and the error rate stays low |
+| **P2 · Contributions + your queue** | Accounts, terms of service + privacy policy, presence proof (30 days), submit edits/photos, automatic checks, admin review page, version history and rollback | Locals submit and you approve or reject from the web page |
+| **P3 · Speed up the review** | AI triage and queue sorting, one-tap and bulk approve, accuracy votes, basket consensus, trust levels | Median review time under 3 days, with you as the only approver |
 | **P4 · Rewards + growth** | Credits, badges, bounties, TD event overlays, club partnerships, then cities beyond Tulsa | Contributions keep coming without you prompting them |
 
-## 8. Decisions needed from you
+## 8. Decisions
 
-1. **OpenStreetMap:** use as an editor hint only, or import the tee/basket layer and accept
-   ODbL share-alike?
-2. **Contribution license:** contributors must grant the app a license to their photos and
-   text in the terms of service. Should guides also be open (e.g., CC BY-SA) to build
-   goodwill?
-3. **Presence window:** how recently must someone have played a course to edit it? (6 months
-   suggested.)
-4. **Backend:** go with Supabase as proposed?
-5. **Who are the first stewards?** Tulsa club contacts and TDs you know would be a strong
-   start.
+| # | Question | Decision |
+|---|---|---|
+| 1 | Use OpenStreetMap data? | **No.** Its share-alike license conflicts with decision 2. We map Tulsa ourselves with GPS. |
+| 2 | License for contributions | **Contributors keep ownership and grant DiscBook a license** through the terms of service (section 9). Guides are not published under an open license for now. |
+| 3 | Presence window and approvals | **30 days**, and **every edit is approved by a person** |
+| 4 | Backend | **Supabase** |
+| 5 | First stewards | **The admin (you)** is the only approver at launch |
+
+## 9. Contribution licensing and terms (plain-English summary)
+
+This is a summary to plan with. **Have a lawyer review the actual terms of service and
+privacy policy before accounts open (phase P2).** Templates exist, but this app takes user
+photos and location, so it's worth getting right.
+
+**Who owns what.** Whoever takes a photo or writes a description owns the copyright. Storing
+it is not enough for DiscBook to use it. Without permission, the app has no clear right to:
+
+- show it to other players or keep it after the contributor deletes their account
+- resize it, blur faces, or rewrite a description into the standard format
+- include it in a shared guide file
+
+The terms of service give that permission.
+
+**What the terms would say, in short:**
+
+- **Contributors keep ownership** of their photos and text.
+- They grant DiscBook a **non-exclusive, worldwide, royalty-free, perpetual license** to store,
+  show, edit, adapt and distribute the contribution within the app and its guides.
+  - *Non-exclusive* means they can still post the same photo elsewhere.
+  - *Perpetual* means an approved hole guide doesn't break when someone leaves.
+- Contributors **promise it's theirs**: they took the photo themselves and didn't copy it
+  from UDisc, Google Maps or another app.
+- No people as the subject of photos. DiscBook may blur anything it misses.
+- DiscBook **may edit, reject or remove** any contribution, and contributions aren't paid.
+- **Location data:** a contribution records where and when it was made. The privacy policy
+  explains that this proves the contributor was at the course, and that their exact round
+  routes are never shown to other people.
+- **AI review:** the privacy policy says submissions are reviewed by an automated service
+  (Anthropic's Claude API), which is a third party that processes the content.
+- Users must be **13 or older**. US children's privacy law (COPPA) puts extra requirements
+  on apps that collect data from younger kids.
+
+**Takedowns.** In the US, an app that hosts user uploads is protected from copyright claims
+over those uploads if it follows the DMCA "notice and takedown" process. That means
+registering a designated agent with the US Copyright Office and removing reported content
+promptly. Set this up before accounts open.
+
+**Why not an open license (like Wikipedia's CC BY-SA)?**
+
+- An open license builds goodwill, but it would let **any competitor, UDisc included, copy
+  every guide** as long as they gave credit. The guides are DiscBook's main advantage.
+- Choosing a proprietary license now keeps both options open: you can open up later, but you
+  can't take an open license back.
+- What contributors care about most, credit on their work, they get anyway (section 6).
+
+**Facts vs. creative work.** A basket's location or a hole's length is a fact, and facts
+can't be copyrighted, so they're easy for anyone to measure and re-map. The protected,
+valuable part is the creative work: photos, written strategy, and drawn landing zones.
 
 ## Risks
 
